@@ -121,7 +121,7 @@ export default function Session() {
           key={q.id}
           q={q}
           onSubmit={(answer, confidence) =>
-            api.submitAttempt({ exam_id: examId, question_id: q.id,
+            api.submitAttempt({ exam_id: sess.exam_id ?? examId, question_id: q.id,
                                 session_id: sess.session_id, answer, confidence })}
           onNext={() => setI(i + 1)}
         />

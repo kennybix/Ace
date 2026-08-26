@@ -72,8 +72,8 @@ async def _serve_session(sess: dict) -> dict:
             "SELECT id, youtube_id, title FROM videos WHERE id=%s AND status='active'",
             (payload["video_id"],))
     questions = await _questions_for_client(qids)
-    return {"session_id": sess["id"], "lesson": lesson, "video": video,
-            "questions": questions, "already_answered": len(answered)}
+    return {"session_id": sess["id"], "exam_id": sess["exam_id"], "lesson": lesson,
+            "video": video, "questions": questions, "already_answered": len(answered)}
 
 
 async def _questions_for_client(qids: list[int]) -> list[dict]:

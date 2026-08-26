@@ -120,6 +120,7 @@ export type PlanItem = {
 };
 export type SessionStart = {
   session_id: number;
+  exam_id: number;
   lesson: { id: number; kind: string; body: string } | null;
   video: { id: number; youtube_id: string; title: string } | null;
   questions: Question[];

@@ -43,11 +43,19 @@ export default function QuestionCard({ q, onSubmit, onNext, hideConfidence }: Pr
     }
   };
 
+  const [subError, setSubError] = useState<string | null>(null);
   const submit = async () => {
     const a = answer();
     if (!a || busy) return;
     setBusy(true);
-    try { setReveal(await onSubmit(a, conf)); } finally { setBusy(false); }
+    setSubError(null);
+    try {
+      setReveal(await onSubmit(a, conf));
+    } catch (e) {  // a failed submit must never look like a dead button
+      setSubError((e instanceof Error ? e.message : String(e)).replace(/^\d+: /, ""));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const stem = q.payload.stem ?? q.payload.statement ?? q.payload.text_with_gap
@@ -131,6 +139,12 @@ export default function QuestionCard({ q, onSubmit, onNext, hideConfidence }: Pr
           <View style={{ marginTop: hideConfidence ? 14 : 0 }}>
             <Button label="Submit" onPress={submit} loading={busy} disabled={answer() === null} />
           </View>
+          {subError && (
+            <Text style={{ color: colors.danger, fontSize: 13, marginTop: 8,
+                           textAlign: "center" }}>
+              {subError} — tap Submit to retry.
+            </Text>
+          )}
         </>
       )}
 
