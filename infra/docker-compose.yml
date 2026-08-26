@@ -1,0 +1,21 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: ace-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ace
+      POSTGRES_PASSWORD: ace
+      POSTGRES_DB: ace
+    ports:
+      - "5445:5432"
+    volumes:
+      - ace_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ace -d ace"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+volumes:
+  ace_pgdata: {}

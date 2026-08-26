@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Ace",
+    "slug": "ace",
+    "version": "0.1.1",
+    "scheme": "ace",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.quantoptimus.ace"
+    },
+    "android": {
+      "package": "com.quantoptimus.ace",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F1720"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "apiCandidates": [
+        "http://YOUR-TAILSCALE-OR-LAN-IP:8040"
+      ]
+    },
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/adaptive-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F1720"
+    }
+  }
+}
