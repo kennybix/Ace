@@ -1,10 +1,22 @@
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { setOnUnauthorized, setToken } from "./api";
+import { normalizeServer, setOnUnauthorized, setServerOverride, setToken } from "./api";
 
 const K_TOKEN = "ace.token";
 const K_EMAIL = "ace.email";
 const K_EXAM = "ace.examId";
+const K_SERVER = "ace.serverOverride";
+
+export async function saveServerOverride(v: string | null): Promise<void> {
+  if (v && v.trim()) {
+    const normalized = normalizeServer(v);
+    setServerOverride(normalized);
+    await SecureStore.setItemAsync(K_SERVER, normalized);
+  } else {
+    setServerOverride(null);
+    await SecureStore.deleteItemAsync(K_SERVER);
+  }
+}
 
 type AppState = {
   token: string | null;
@@ -27,11 +39,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const [t, e, x] = await Promise.all([
+        const [t, e, x, srv] = await Promise.all([
           SecureStore.getItemAsync(K_TOKEN),
           SecureStore.getItemAsync(K_EMAIL),
           SecureStore.getItemAsync(K_EXAM),
+          SecureStore.getItemAsync(K_SERVER),
         ]);
+        if (srv) setServerOverride(srv);
         if (t) {
           setToken(t);
           setTok(t);

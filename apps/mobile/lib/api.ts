@@ -1,5 +1,20 @@
 import Constants from "expo-constants";
 
+// user-entered server address (SecureStore-backed via the store) — tried FIRST, because
+// shared Tailscale nodes can appear under a different 100.x IP in the invitee's tailnet
+let serverOverride: string | null = null;
+export function setServerOverride(v: string | null) {
+  serverOverride = v && v.trim() ? normalizeServer(v) : null;
+}
+export const getServerOverride = () => serverOverride;
+
+export function normalizeServer(v: string): string {
+  let s = v.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//.test(s)) s = `http://${s}`;
+  if (!/:\d+$/.test(s)) s = `${s}:8040`;
+  return s;
+}
+
 function candidates(): string[] {
   const extra = Constants.expoConfig?.extra ?? {};
   const list = [...((extra.apiCandidates as string[] | undefined) ?? [])];
@@ -9,7 +24,8 @@ function candidates(): string[] {
   const devHost = Constants.expoConfig?.hostUri?.split(":")[0];
   if (devHost) list.push(`http://${devHost}:8040`);
   if (list.length === 0) list.push("http://localhost:8040");
-  return [...new Set(list)];
+  const all = serverOverride ? [serverOverride, ...list] : list;
+  return [...new Set(all)];
 }
 
 // Active base: first candidate until a health probe picks the reachable one

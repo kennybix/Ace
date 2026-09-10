@@ -1,9 +1,9 @@
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { Image, Text, TextInput, View } from "react-native";
+import { Image, Pressable, Text, TextInput, View } from "react-native";
 import { Button, Card, ConnPill, Fade, Screen } from "@/components/ui";
-import { api, getBase, healthCheck } from "@/lib/api";
-import { useApp } from "@/lib/store";
+import { api, getBase, getServerOverride, healthCheck } from "@/lib/api";
+import { saveServerOverride, useApp } from "@/lib/store";
 import { colors, s, type } from "@/lib/theme";
 
 type Conn = "checking" | "ok" | "down";
@@ -18,6 +18,8 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conn, setConn] = useState<Conn>("checking");
+  const [editServer, setEditServer] = useState(false);
+  const [serverInput, setServerInput] = useState(getServerOverride() ?? "");
 
   const checkServer = useCallback(async () => {
     setConn("checking");
@@ -71,10 +73,35 @@ export default function Login() {
         </Fade>
 
         <Fade delay={120}>
-          <View style={{ alignItems: "center", marginBottom: 16 }}>
+          <View style={{ alignItems: "center", marginBottom: 6 }}>
             <ConnPill state={conn} detail={getBase().replace("http://", "")}
                       onRetry={checkServer} />
+            <Pressable onPress={() => setEditServer(!editServer)}>
+              <Text style={{ color: colors.textFaint, fontSize: 12, padding: 8 }}>
+                {editServer ? "hide" : "change server address"}
+              </Text>
+            </Pressable>
           </View>
+
+          {editServer && (
+            <View style={{ marginBottom: 10 }}>
+              <TextInput style={s.input}
+                         placeholder="e.g. quantoptimus.taile8b1de.ts.net or 100.x.y.z"
+                         placeholderTextColor={colors.textFaint}
+                         autoCapitalize="none" autoCorrect={false}
+                         value={serverInput} onChangeText={setServerInput} />
+              <Text style={[{ color: colors.textFaint, fontSize: 11.5, marginBottom: 8 }]}>
+                On a shared Tailscale machine? Open your Tailscale app → Machines → copy
+                the address it shows *you* — it can differ from the owner's.
+              </Text>
+              <Button label="Save & test" variant="secondary" small
+                      onPress={async () => {
+                        await saveServerOverride(serverInput || null);
+                        setEditServer(false);
+                        checkServer();
+                      }} />
+            </View>
+          )}
 
           {!sent ? (
             <>
