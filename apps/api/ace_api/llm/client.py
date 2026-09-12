@@ -5,7 +5,9 @@ Every call site passes `task` (stable string) — the fake dispatches on it, and
 
 from __future__ import annotations
 
+import contextvars
 import json
+import logging
 from typing import Any
 
 import httpx
@@ -14,9 +16,25 @@ from ace_api.config import settings
 
 PROMPT_VERSION = "v1"
 
+log = logging.getLogger("ace.llm")
+
+# Which registered model actually answered the most recent chat_json call on this
+# task/request context — provenance must record the model that wrote the content,
+# not the one that was asked and failed over.
+_last_model: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "ace_llm_last_model", default=None)
+
+ALL_MODELS_DOWN = ("Ace's AI budget is exhausted on every configured model right now — "
+                   "nothing new can be written. Everything already created is still "
+                   "available; creation resumes automatically once a model comes back.")
+
 
 class LLMError(RuntimeError):
     pass
+
+
+def last_model_used() -> str | None:
+    return _last_model.get()
 
 
 def resolve_model(model_id: str | None) -> dict:
@@ -30,11 +48,46 @@ def resolve_model(model_id: str | None) -> dict:
 
 async def chat_json(task: str, system: str, user: str, model_id: str | None = None,
                     temperature: float = 0.3, max_tokens: int = 4000) -> dict[str, Any]:
-    """One structured-output call. Returns parsed JSON dict. Honors fake mode."""
+    """One structured-output call. Returns parsed JSON dict. Honors fake mode.
+
+    If the requested model errors (quota, auth, unsupported model), silently retries down
+    settings().llm_fallback_order; last_model_used() reports which model actually answered.
+    """
     s = settings()
     if s.llm_fake or not s.llm_api_key:
+        try:
+            _last_model.set(resolve_model(model_id)["id"])
+        except LLMError:
+            _last_model.set(model_id)
         return _fake(task, user)
-    model = resolve_model(model_id)
+    primary = resolve_model(model_id)
+    chain = [primary]
+    if s.llm_fallback:
+        for fid in s.llm_fallback_order:
+            if fid == primary["id"]:
+                continue
+            try:
+                chain.append(resolve_model(fid))
+            except LLMError:
+                continue  # fallback order may reference a model removed from the registry
+    failures: list[str] = []
+    for model in chain:
+        try:
+            out = await _gateway_json(task, model, system, user, temperature, max_tokens)
+            if failures:
+                log.warning("task=%s fell back to %s after: %s",
+                            task, model["id"], " | ".join(failures))
+            _last_model.set(model["id"])
+            return out
+        except (LLMError, httpx.HTTPError) as e:
+            failures.append(f"{model['id']}: {str(e)[:160]}")
+    log.error("task=%s exhausted all models: %s", task, " | ".join(failures))
+    raise LLMError(ALL_MODELS_DOWN)
+
+
+async def _gateway_json(task: str, model: dict, system: str, user: str,
+                        temperature: float, max_tokens: int) -> dict[str, Any]:
+    s = settings()
     body = {
         "model": model["gateway"],
         "max_tokens": max_tokens,

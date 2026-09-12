@@ -15,6 +15,16 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Ace API", version="0.1.0", lifespan=lifespan)
 
+    # Creation paths surface LLM outages as a clear "budget exhausted" 503, never a raw 500 —
+    # everything already generated keeps serving from Postgres regardless.
+    from fastapi.responses import JSONResponse
+
+    from ace_api.llm.client import LLMError
+
+    @app.exception_handler(LLMError)
+    async def llm_unavailable(request, exc: LLMError):
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
+
     @app.get("/health")
     async def health():
         row = await db.fetch_one("SELECT 1 AS ok")

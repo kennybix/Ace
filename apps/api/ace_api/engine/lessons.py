@@ -66,6 +66,8 @@ async def build_lesson(exam_id: int, topic_id: int, kind: str = "micro_lesson",
                        "chunks": [{"id": c["id"], "text": c["text"][:2000]} for c in chunks]})
     out = await chat_json("build_lesson", SYSTEM, user, model_id=model_id, temperature=0.4,
                           max_tokens=7000)
+    from ace_api.llm.client import last_model_used
+    used_model = last_model_used() or model_id  # fallback may have answered with another model
     if not isinstance(out, dict) or "body" not in out:
         return {"error": "lesson reply malformed"}
     cites = out.get("citation_chunk_ids") or []
@@ -76,5 +78,5 @@ async def build_lesson(exam_id: int, topic_id: int, kind: str = "micro_lesson",
         """INSERT INTO lessons (exam_id, topic_id, kind, body, citations, model_id, prompt_version)
            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (exam_id, topic_id, kind, out["body"], json.dumps([{"chunk_id": int(c)} for c in cites]),
-         model_id or "default", PROMPT_VERSION + "-deep"))
+         used_model or "default", PROMPT_VERSION + "-deep"))
     return {"lesson_id": row["id"], "title": out.get("title", ""), "body": out["body"]}

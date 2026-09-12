@@ -151,7 +151,7 @@ def test_full_journey(client):
 
     # model picker
     r = client.get("/models", headers=h)
-    assert {m["id"] for m in r.json()["models"]} == {"opus-4.8", "fable-5", "gpt-5.5", "gpt-5.6"}
+    assert {m["id"] for m in r.json()["models"]} == {"opus-5", "fable-5.1", "opus-4.8", "fable-5", "gpt-5.5", "gpt-5.6"}
     r = client.put("/me/model", json={"model_id": "fable-5"}, headers=h)
     assert r.json()["selected"] == "fable-5"
     assert client.put("/me/model", json={"model_id": "bogus"}, headers=h).status_code == 400

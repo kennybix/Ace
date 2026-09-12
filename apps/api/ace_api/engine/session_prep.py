@@ -9,6 +9,7 @@ from ace_api import db
 from ace_api.engine import assessor, generator, lessons
 
 DRILLS_PER_SESSION = 10
+MIN_DRILLS = 5  # a learn session below this feels broken — top up from the exam-wide pool
 
 
 async def prepare_session(plan_item_id: int, model_id: str | None = None) -> dict:
@@ -58,18 +59,20 @@ async def prepare_session(plan_item_id: int, model_id: str | None = None) -> dic
                 ids += gen.get("accepted", [])
             payload["question_ids"] += ids
 
-    # fallback: a session must never be empty — if the item's topics have no pool,
-    # drill the exam-wide unattempted pool instead
-    if item["kind"] in ("learn", "taper") and not payload["question_ids"]:
+    # fallback: a session must never be empty or thin — when the item's topics can't fill
+    # the minimum (no pool, or generation deduped away), drill the exam-wide unattempted pool
+    if item["kind"] in ("learn", "taper") and len(payload["question_ids"]) < MIN_DRILLS:
         rows = await db.fetch_all(
             """SELECT q.id FROM questions q
                WHERE q.exam_id=%s AND q.status='active'
                  AND q.payload->>'correct_index' IS NOT NULL
+                 AND q.id != ALL(%s)
                  AND NOT EXISTS (SELECT 1 FROM attempts a WHERE a.question_id=q.id
                                  AND a.exam_id=%s)
                ORDER BY (q.source='extracted') DESC, random() LIMIT %s""",
-            (exam_id, exam_id, DRILLS_PER_SESSION))
-        payload["question_ids"] = [r["id"] for r in rows]
+            (exam_id, payload["question_ids"] or [0], exam_id,
+             DRILLS_PER_SESSION - len(payload["question_ids"])))
+        payload["question_ids"] += [r["id"] for r in rows]
 
     payload["review_ids"] = await assessor.due_reviews(exam_id, 5)
 

@@ -18,12 +18,18 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     # id = Ace-internal id, gateway = model id at the proxy
     llm_models: list[dict] = [
+        {"id": "opus-5", "label": "Claude Opus 5", "gateway": "claude-opus-5"},
+        {"id": "fable-5.1", "label": "Claude Fable 5.1", "gateway": "claude-fable-5-1"},
         {"id": "opus-4.8", "label": "Claude Opus 4.8", "gateway": "claude-opus-4-8"},
         {"id": "fable-5", "label": "Claude Fable 5", "gateway": "claude-fable-5"},
         {"id": "gpt-5.5", "label": "GPT-5.5", "gateway": "gpt-5.5"},
         {"id": "gpt-5.6", "label": "GPT-5.6", "gateway": "gpt-5.6"},
     ]
     llm_default_model: str = "gpt-5.5"
+    # When the selected model fails (quota, auth, unsupported), silently retry down this
+    # chain; the model that actually answered is stamped into content provenance.
+    llm_fallback: bool = True
+    llm_fallback_order: list[str] = ["opus-5", "gpt-5.5", "opus-4.8", "fable-5.1", "fable-5"]
     llm_fake: bool = False  # tests/dev without a gateway key use the deterministic fake
     # Deliberate generation: every generated question passes an LLM critic (judge → revise →
     # accept/kill) before it can be served. Doubles generation cost; runs in nightly batch.

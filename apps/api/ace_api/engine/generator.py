@@ -132,6 +132,8 @@ async def generate_for_topic(exam_id: int, topic_code: str, fmt: str, n: int,
         out = await chat_json("generate_questions", SYSTEM, user, model_id=model_id, temperature=0.6)
     except LLMError as e:
         return {"accepted": [], "rejected": {"llm_error": str(e)[:200]}, "requested": n}
+    from ace_api.llm.client import last_model_used
+    used_model = last_model_used() or model_id  # fallback may have answered with another model
     # models occasionally reply with a bare array despite the schema — normalize
     candidates = out.get("questions", []) if isinstance(out, dict) else (
         out if isinstance(out, list) else [])
@@ -197,7 +199,7 @@ async def generate_for_topic(exam_id: int, topic_code: str, fmt: str, n: int,
                RETURNING id""",
             (exam_id, topic["id"], q["format"], q.get("cognitive_level", "understand"),
              json.dumps(payload), json.dumps(citations), float(q.get("difficulty", 0.5)),
-             model_id or "default", PROMPT_VERSION, to_pgvector(vec),
+             used_model or "default", PROMPT_VERSION, to_pgvector(vec),
              json.dumps(critique_notes)))
         accepted.append(row["id"])
     return {"accepted": accepted, "rejected": rejected, "requested": n}
